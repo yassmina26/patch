@@ -1,0 +1,38 @@
+- hosts: all
+  become: true
+  tasks:
+
+    - name: List available updates
+      command: apt list --upgradable
+      register: apt_list_output_before
+
+    - name: Perform updates from local repository
+      apt:
+        update_cache: yes
+        upgrade: yes
+        cache_valid_time: 3600
+        sources_list: /path/to/local/repo
+
+    - name: Confirm patch
+      debug: 
+        msg:"Patch completed succefully"
+
+    - name: Reboot Ubuntu VM
+      reboot:
+      reboot_timeout: 300
+
+    - name: List available updates after reboot
+      command: apt list --upgradable
+      register: apt_list_output_after
+
+    - name: Generate and send report
+      shell: |
+        echo "Report for Ubuntu VM patching:" > Ubuntu_report.txt
+        echo "Updates listed before executing patch playbook: {{ apt_list_output_before }}" >> Ubuntu_report.txt
+        echo "Updates installed from local repo: {{ apt_list_output_after }}" >> Ubuntu_report.txt
+        mail -s "Ubuntu VM patching report" yboukari@deloitte.fr < report.txt
+
+
+
+     
+

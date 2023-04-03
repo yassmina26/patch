@@ -1,0 +1,6 @@
+plugin: ovh
+ovh_cloud: "ovh-eu"
+ovh_auth_endpoint: "ovh-eu"
+ovh_application_key: "<your_application_key>"
+ovh_application_secret: "<your_application_secret>"
+ovh_consumer_key: "<your_consumer_key>"

@@ -1,0 +1,5 @@
+# Azure inventory
+azure_rm:
+  include_vm_resource_groups:
+    - name: resource group
+  auth_source: credential_file/auto/..

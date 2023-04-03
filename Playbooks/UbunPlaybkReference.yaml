@@ -1,0 +1,59 @@
+- hosts: all
+  become: true
+  tasks:
+
+#It is advisable to stop the critical services before you upgrade the system. 
+
+    - name:  Task 1 - verify web/database processes are not running
+      shell: if ps -eaf | egrep 'apache|http|nginx|mysql|postgresql|mariadb'|grep -v grep > /dev/null ;then echo 'process_running';else echo 'process_not_running';fi
+      ignore_errors: true
+      register: app_process_check
+
+#In the following task, the play will fail on those nodes where web/database processes are running.
+
+    - name:  Task 2 - decision point to start patching
+      fail: msg="{{ inventory_hostname }} have running Application. Please stop the application processes first, then attempt patching."
+      when: app_process_check.stdout == "process_running"
+
+#In the following task(3), we check for the reboot requirement on the servers after Kernel upgrade by verifying the existence of /var/run/reboot-required file. 
+#We are saving the result of stat module's output which we are going to use it to decide rebooting of the server later.
+#get_md5=no –> This is to verify the checksum of the file using one the algorithms (sha1, sha256, sha512 etc.).
+
+    - name: Task 4 - Check if a reboot is required after kernel update on Ubuntu/Debian servers 
+      register: reboot_required_file
+      stat: path=/var/run/reboot-required get_md5=no
+      #when: ansible_distribution == 'Ubuntu' or ansible_distribution == 'Debian'
+
+#
+
+    - name: Task 5 - Reboot Ubuntu/Debian Servers if kernel updated
+      reboot:
+        msg: "Rebooting Ubuntu/Debian Servers After Kernel Patching"
+        connect_timeout: 5
+        reboot_timeout: 300
+        pre_reboot_delay: 0
+        post_reboot_delay: 30
+        test_command: uptime
+      when: reboot_required_file.stat.exists and (ansible_distribution == 'Ubuntu' or ansible_distribution == 'Debian')
+      register: reboot_started_ubuntu
+      ignore_errors: true
+
+#The following tasks are for different purposes.
+
+    - name: Task 1 - Get packages that can be upgraded
+      become: yes
+      ansible.builtin.apt:
+        list: upgrades
+        state: latest
+        update_cache: yes
+      register: apt_output_all
+      when: ev_security_only == "no"
+    
+    - name: Task 2 - Update all packages to their latest version
+      ansible.builtin.apt:
+        name: "*"
+        state: latest
+    
+    - name: Task 3 - Remove useless packages from the cache
+      ansible.builtin.apt:
+        autoclean: yes
