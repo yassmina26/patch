@@ -96,20 +96,61 @@
 
 #The following tasks are for different purposes.
 
-    - name: Task 1 - Get packages that can be upgraded
+  #Those 2 tasks are meant to retrieve a list of packages that can be upgraded on a system and print it to the console
+  #but only if the ev_security_only variable is not set to "yes".
+    - name: Get packages that can be upgraded
       become: yes
       ansible.builtin.apt:
         list: upgrades
         state: latest
         update_cache: yes
-      register: apt_output_all
+      register: reg_apt_output_all
+      when: ev_security_only == "no"
+
+    - name: List packages that can be upgraded
+      ansible.builtin.debug: 
+        msg: "{{ reg_apt_output_all.results | map(attribute='name') | list }}"
       when: ev_security_only == "no"
     
-    - name: Task 2 - Update all packages to their latest version
+  #Those 2 tasks are meant to retrieve a list of packages that can be upgraded on a system and print it to the console
+  #but only if the ev_security_only variable is set to "yes".
+
+    - name: Get packages that can be patched with security fixes
+      become: yes
+      ansible.builtin.apt:
+        security: yes
+        list: updates
+        state: latest
+        update_cache: yes
+      register: reg_apt_output_secu
+      when: ev_security_only == "yes"
+
+    - name: List packages that can be patched with security fixes
+      ansible.builtin.debug: 
+        msg: "{{ reg_apt_output_secu.results | map(attribute='name') | list }}"
+      when: ev_security_only == "yes"
+      
+  #Other
+    - name: Task a - Update all packages to their latest version
       ansible.builtin.apt:
         name: "*"
         state: latest
     
-    - name: Task 3 - Remove useless packages from the cache
+    - name: Task b - Remove useless packages from the cache
       ansible.builtin.apt:
         autoclean: yes
+
+  #This task ensure that only security-related packages are upgraded.
+    - name: Upgrade only security-related packages
+      apt:
+        upgrade: security
+        autoremove: yes
+        autoclean: yes
+
+    - name: Request user confirmation
+      ansible.builtin.pause:
+        prompt: | 
+           The packages listed above will be upgraded. Do you want to continue ? 
+           -> Press RETURN to continue.
+           -> Press Ctrl+c and then "a" to abort.
+      when: reg_apt_output_all is defined or reg_apt_output_secu is defined
