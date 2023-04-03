@@ -9,3 +9,5 @@
       path: /etc/apt/apt.conf
       block: |
         Acquire::http::Proxy "http://my-apt-cacher-ip:3142/";
+    
+  - name: Comment all lines in /etc/apt/sources.list
