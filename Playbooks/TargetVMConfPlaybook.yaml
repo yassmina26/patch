@@ -1,0 +1,11 @@
+---
+- name: Configure apt-cacher-ng server
+  hosts: target_vm
+  become: true
+
+  tasks:
+  - name: Edit apt.conf file to use apt-cacher-ng server
+    blockinfile:
+      path: /etc/apt/apt.conf
+      block: |
+        Acquire::http::Proxy "http://my-apt-cacher-ip:3142/";
