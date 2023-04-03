@@ -24,7 +24,12 @@
       stat: path=/var/run/reboot-required get_md5=no
       #when: ansible_distribution == 'Ubuntu' or ansible_distribution == 'Debian'
 
-#
+#The goal of the following task is to Reboot Ubuntu systems if kernel updated and reboot required. 
+#connect_timeout -> Maximum seconds to wait for a successful connection to the managed hosts before trying again.
+#reboot_timeout -> Maximum seconds to wait for machine to reboot and respond to a test command.
+#pre_reboot_delay -> Seconds to wait before reboot.
+#post_reboot_delay -> Seconds to wait after the reboot command was successful before attempting to validate the system rebooted successfully.
+#test_command -> Command to run on the rebooted host and expect success from to determine the machine is ready for further tasks.
 
     - name: Task 5 - Reboot Ubuntu/Debian Servers if kernel updated
       reboot:
@@ -37,6 +42,57 @@
       when: reboot_required_file.stat.exists and (ansible_distribution == 'Ubuntu' or ansible_distribution == 'Debian')
       register: reboot_started_ubuntu
       ignore_errors: true
+
+#This task will ensure that after the pause of 3 minutes the systems are accessible through SSH. Here we are using local_action module. When we use this module.
+#Ansible will run the module mentioned under it on the controller node. That module here is wait_for.
+
+    - name: Task 10 - check if all the systems responding to ssh
+      local_action:
+        module: wait_for
+          host={{ (ansible_ssh_host|default(ansible_host))|default(inventory_hostname) }}
+          port=22
+          search_regex=OpenSSH
+          delay=15
+          timeout=300
+          state=started
+
+
+#Updating all packages on Ubuntu / Debian Linux Servers
+    
+    - name: Update apt repo and package cache
+      apt:
+        update_cache: yes
+        force_apt_get: yes
+        cache_valid_time: 3600
+
+    - name: Upgrade all packages
+      apt:
+        upgrade: dist
+        force_apt_get: yes
+
+    - name: Check if a reboot is needed on all servers
+      register: reboot_required_file_existence
+      stat: path=/var/run/reboot-required get_md5=no
+
+    - name: Reboot servers if kernel is updated
+      reboot:
+        msg: "Rebooting the servers after applying Kernel Updates"
+        connect_timeout: 5
+        reboot_timeout: 300
+        pre_reboot_delay: 0
+        post_reboot_delay: 30
+        test_command: uptime
+      when: reboot_required_file_existence.stat.exists
+
+    - name: check if all the systems responding to ssh
+      local_action:
+        module: wait_for
+          host={{ (ansible_ssh_host|default(ansible_host))|default(inventory_hostname) }}
+          port=22
+          search_regex=OpenSSH
+          delay=15
+          timeout=300
+          state=started
 
 #The following tasks are for different purposes.
 
