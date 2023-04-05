@@ -4,21 +4,10 @@
   become: true
 
   tasks:
-  - name: Edit apt.conf file to use apt-cacher-ng server
+  - name: 
+  - name: Edit 00aptproxy file to use apt-cacher-ng server
     blockinfile:
-      path: /etc/apt/apt.conf
+      path: /etc/apt/apt.conf.d/00aptproxy
       block: |
         Acquire::http::Proxy "http://my-apt-cacher-ip:3142/";
-    
-  - name: Comment out all lines in sources.list
-    lineinfile:
-      path: /etc/apt/sources.list
-      regexp: '^(deb|deb-src)'
-      line: '#\g<0>'
-    notify: update apt cache
-          
-  handlers:
-    - name: update apt cache
-      apt:
-        update_cache: yes
 
