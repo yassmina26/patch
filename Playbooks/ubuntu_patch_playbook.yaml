@@ -1,11 +1,23 @@
 - hosts: all
   become: true
   tasks:
+  
+    # Use Jinja2 templates to deploy dynamic config
+    - name: Configure repo on client VMs
+    
+    # Ensure that client has enough disk size
+    - name: Check /tmp filesystem free space
 
+    # Filter Patches by Security/Severity/CVEs
+    # More details check here: https://access.redhat.com/support/policy/severity/
+    # Add support for Errata
+    # More details check here: https://access.redhat.com/articles/2130961
     - name: List available updates
-      command: apt list --upgradable
+      command: apt list --upgradable 
       register: apt_list_output_before
-
+     
+    # Add option for security only patches
+    # Fix OS release version before patching
     - name: Perform updates from local repository
       apt:
         update_cache: yes
@@ -13,10 +25,13 @@
         cache_valid_time: 3600
         sources_list: /path/to/local/repo
 
+    # Add more error handling in case of patch failure
     - name: Confirm patch
       debug: 
         msg:"Patch completed succefully"
 
+    # Check if reboot is needed first
+    # Example (yum): needs-restarting -r
     - name: Reboot Ubuntu VM
       reboot:
       reboot_timeout: 300
@@ -24,6 +39,7 @@
     - name: List available updates after reboot
       command: apt list --upgradable
       register: apt_list_output_after
+   # Clean yum/apt cache after update
 
     - name: Generate and send report
       shell: |
@@ -32,6 +48,11 @@
         echo "Updates installed from local repo: {{ apt_list_output_after }}" >> Ubuntu_report.txt
         mail -s "Ubuntu VM patching report" yboukari@deloitte.fr < report.txt
 
+    # Add option for CSV file generator
+    - name: Generate cvs reort file
+
+    # Send notification/email with patch report
+    - name: Notify me with pactch report
 
 
      
