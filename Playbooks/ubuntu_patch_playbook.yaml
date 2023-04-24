@@ -5,18 +5,36 @@
     # Use Jinja2 templates to deploy dynamic config
     - name: Configure repo on client VMs
     
-    # Ensure that client has enough disk size
-    - name: Check /tmp filesystem free space
-
+    # Ensure that client has enough disk size 
+    - name: test for available disk space
+      assert:
+        that: 
+           - not {{ item.mount == '/' and ( item.size_available < item.size_total - ( item.size_total|float * 0.8 ) ) }}
+           - not {{ item.mount == '/var' and ( item.size_available < item.size_total - ( item.size_total|float * 0.8 ) ) }}
+      with_items: ansible_mounts
+      ignore_errors: yes
+      register: disk_free
     # Filter Patches by Security/Severity/CVEs
-    # More details check here: https://access.redhat.com/support/policy/severity/
-    # Add support for Errata
-    # More details check here: https://access.redhat.com/articles/2130961
+    # apt-listbugs and apt-show-version should be installed on client servers 
+     # name: Filter patches by severity
+     # shell: apt-listbugs --severity serious,critical
+     # register: high_severity_patches
+     # changed_when: False
+     # More details check here: https://access.redhat.com/support/policy/severity/
+     # Add support for Errata
+     # More details check here: https://access.redhat.com/articles/2130961
     - name: List available updates
       command: apt list --upgradable 
       register: apt_list_output_before
      
-    # Add option for security only patches
+    # Add option for security only patches 
+    - name: List security Updates Only 
+      command: sudo unattended-upgrade --dry-run -d
+      register: apt-security-updates
+
+    - name: Perform Security Updates
+      command: sudo unattended-upgrade -d
+      
     # Fix OS release version before patching
     - name: Perform updates from local repository
       apt:
