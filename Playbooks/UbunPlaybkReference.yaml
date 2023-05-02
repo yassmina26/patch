@@ -154,3 +154,10 @@
            -> Press RETURN to continue.
            -> Press Ctrl+c and then "a" to abort.
       when: reg_apt_output_all is defined or reg_apt_output_secu is defined
+
+    - name: Perform updates from local repository
+      apt:
+        update_cache: yes
+        upgrade: yes
+        cache_valid_time: 3600
+        sources_list: /path/to/local/repo
