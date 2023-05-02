@@ -1,9 +1,11 @@
 - hosts: all
+  ignore_unreachable: true
   become: true
   tasks:
-
     
-    # Ensure that client has enough disk size two methodes 
+    - name: This executes, fails, and the failure is ignored
+      ansible.builtin.command: /bin/true
+
     - name: test for available disk space
       assert:
         that: 
@@ -12,6 +14,7 @@
       with_items: ansible_mounts
       ignore_errors: yes
       register: disk_free
+   
     - name: test for availale disk space2 
       assert:
         that:
@@ -19,72 +22,86 @@
       with_items: ansible_mounts 
       ignore_errors: yes
       register: disk_free 
-    # Filter Patches by Security/Severity/CVEs
-    # apt-listbugs and apt-show-version should be installed on client servers 
-     # name: Filter patches by severity
-     # shell: apt-listbugs --severity serious,critical
-     # register: high_severity_patches
-     # changed_when: False
-     # More details check here: https://access.redhat.com/support/policy/severity/
-     # Add support for Errata
-     # More details check here: https://access.redhat.com/articles/2130961
+
+    - name: Stop multiple services
+      service:
+        name: "{{ item }}"
+        state: stopped
+      with_items:
+         - apache2
+         - nginx
+         - mysql
+
     - name: List available updates
       command: apt list --upgradable 
       register: apt_list_output_before
-     
-    # Add option for security only patches 
-    # stop running applications 
+   
     - name: List security Updates Only 
       command: sudo unattended-upgrade --dry-run -d
       register: apt-security-updates
 
+    - name: Update all
+      apt:
+      update_cache: yes
+      upgrade: yes
+      cache_valid_time: 3500
+      register: update_result
+      failed_when: update_result.rc not in [0, 2]
+      ignore_errors: yes
+
     - name: Perform Security Updates
       command: sudo unattended-upgrade -d
+      register: sec_patch_result
+      failed_when: sec_patch_result.rc not in [0, 2]
+      ignore_errors: yes
       
-    # Fix OS release version before patching
-    - name: Perform updates from local repository
-      apt:
-        update_cache: yes
-        upgrade: yes
-        cache_valid_time: 3600
-        sources_list: /path/to/local/repo
+    # Fix OS release version before patching???
+    
+    - name: In case of playbook failure
+      fail: 
+        msg: "{{ playbook_name }} failed because of {{update_result}}. Please review the logs, then attempt patching.
+                 The command {{ update_result.cmd/sec_patch_result.cmd }} failed with return code {{ sec_patch_result.rc/update_result.rc }}"
+      when: update_result.failed/sec_patch_result.failed
 
-    # Add more error handling in case of patch failure
     - name: Confirm patch
       debug: 
         msg:"Patch completed succefully"
 
-    # Check if reboot is needed first
     - name: check if reboot is needed
       stat:
          path: /var/run/reboot-required
       register: reboot_required_file
-    # reboot for vm with gr interface
-    # disactivate gr interface for vms 
+  
 
     - name: Reboot if required
       reboot:
       when: reboot_required_file.stat.exists == true
       reboot_timeout: 300
     
+    - name: check if all the systems responding to ssh
+      local_action:
+        module: wait_for
+          host={{ (ansible_ssh_host|default(ansible_host))|default(inventory_hostname) }}
+          port=22
+          search_regex=OpenSSH
+          delay=15
+          timeout=300
+          state=started
 
     - name: List available updates after reboot
       command: apt list --upgradable
       register: apt_list_output_after
-   # Clean yum/apt cache after update
-
-    - name: Generate and send report
-      shell: |
-        echo "Report for Ubuntu VM patching:" > Ubuntu_report.txt
-        echo "Updates listed before executing patch playbook: {{ apt_list_output_before }}" >> Ubuntu_report.txt
-        echo "Updates installed from local repo: {{ apt_list_output_after }}" >> Ubuntu_report.txt
-        mail -s "Ubuntu VM patching report" yboukari@deloitte.fr < report.txt
+   
+   
+    - name: Clean the cache
+     apt:
+       clean: yes
 
     # Add option for CSV file generator
-    - name: Generate cvs reort file
+    - name: Generate cvs report file
 
     # Send notification/email with patch report
-    - name: Notify me with pactch report
+    - name: Notify me with patch report
 
 
      
