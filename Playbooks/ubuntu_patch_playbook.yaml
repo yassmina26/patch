@@ -63,10 +63,6 @@
                  The command {{ update_result.cmd/sec_patch_result.cmd }} failed with return code {{ sec_patch_result.rc/update_result.rc }}"
       when: update_result.failed/sec_patch_result.failed
 
-<<<<<<< HEAD
-    # Add more error handiling in case of patch failure
-=======
->>>>>>> 4041f3ea743ab2beb6e8e9cc3043b4a37a82128a
     - name: Confirm patch
       debug: 
         msg:"Patch completed succefully"
@@ -95,7 +91,6 @@
     - name: List available updates after reboot
       command: apt list --upgradable
       register: apt_list_output_after
-<<<<<<< HEAD
 
 
     - name: Display hostname and IP address
@@ -104,27 +99,13 @@
           - ansible_hostname
           - ansible_default_ipv4.address
       register: host_info
-
-
-   # Clean yum/apt cache after update
-
-    # - name: Generate and send report
-    #   shell: |
-    #     echo "Report for Ubuntu VM patching:" > Ubuntu_report.txt
-    #     echo "Updates listed before executing patch playbook: {{ apt_list_output_before }}" >> Ubuntu_report.txt
-    #     echo "Updates installed from local repo: {{ apt_list_output_after }}" >> Ubuntu_report.txt
-    #     mail -s "Ubuntu VM patching report" yboukari@deloitte.fr < report.txt
-=======
-   
    
     - name: Clean the cache
      apt:
        clean: yes
->>>>>>> 4041f3ea743ab2beb6e8e9cc3043b4a37a82128a
 
     
     # Add option for CSV file generator
-<<<<<<< HEAD
     - name: Generate cvs reort file
       csv:
         path: "/host_info.csv"
@@ -140,9 +121,7 @@
       with_items: "{{ host_info.results }}"
       
      
-=======
     - name: Generate cvs report file
->>>>>>> 4041f3ea743ab2beb6e8e9cc3043b4a37a82128a
 
     # Send notification/email with patch report
     - name: Notify me with patch report
