@@ -1,0 +1,51 @@
+- hosts: all
+  ignore_unreachable: true
+  tasks:
+
+    - name: This executes, fails, and the failure is ignored
+      ansible.builtin.command: /bin/true
+
+    - name: Test for availale disk space
+      assert:
+        that:
+           - not (item.mount == '/' and item.size_available < 21474836480)
+      with_items: "{{ ansible_mounts }}"
+      ignore_errors: yes
+      register: disk_free
+
+#    - name: Print disk space information
+#      debug:
+#        msg: "Size available on {{ item.mount }} is {} bytes".format(item.size_available)
+#      with_items: "{{ ansible_mounts }}"
+
+    - name:  Task 1 - verify web/database processes are not running
+      shell: if ps -eaf | egrep 'apache|http|nginx|mysql|postgresql|mariadb'|grep -v grep > /dev/null ;then echo 'process_running';else echo$
+      ignore_errors: true
+      register: app_process_check
+
+    - name: Search for available updates
+      command: apt list --upgradable
+      register: apt_list_output_before
+
+    - name: List available updates
+      debug:
+        msg: "available updates are: {{apt_list_output_before}}"
+
+    - name: Search for security updates only
+      command: sudo unattended-upgrade --dry-run -d
+      register: apt_security_updates
+
+    - name: List security updates
+      debug:
+        msg: "Security  updates are: {{apt_security_updates}}"
+    
+    - name: Notify me with pactch report
+      shell: |
+        echo "Patch report" > patchReport.txt
+        echo "Storage output: {{disk_free}}" >> patchReport.txt
+        echo " Services stopped: {{app_process_check}}" >> patchReport.txt
+        echo "Updates listed before executing patch : {{ apt_list_output_before }}" >> patchReport.txt
+        echo "Security updates listed: {{ apt_security_updates }}" >> patchReport.txt
+        mail -s "Patching report" yboukari@hotmail.com < patchReport.txt
+
+      

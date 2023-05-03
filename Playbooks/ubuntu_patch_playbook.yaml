@@ -101,8 +101,8 @@
       register: host_info
    
     - name: Clean the cache
-     apt:
-       clean: yes
+      apt:
+        clean: yes
 
     
     # Add option for CSV file generator
@@ -124,7 +124,9 @@
     - name: Generate cvs report file
 
     # Send notification/email with patch report
-    - name: Notify me with patch report
+    - name: Notify me with pactch report
+      shell: |
+        mail -s "Ubuntu VM patching report" yboukari@deloitte.fr < report.tx
 
 
      
