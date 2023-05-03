@@ -1,7 +1,0 @@
----
-- name: Update specific packages
-  hosts: target_vm
-  become: true
-     
-     tasks: 
-       - name: 

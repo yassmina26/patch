@@ -1,0 +1,42 @@
+- hosts: all
+  become: true
+
+  vars:
+    output_path: "~/ansible/report"
+    filename: "report_{{ lookup('pipe', 'date +%Y%m%d-%H%M%S') }}.csv"
+
+  tasks:
+    - name: Install the package
+      ansible.builtin.apt:
+        name: nmap
+        state: present
+      register: package_output
+
+    - name: check
+      debug:
+        msg: "Package installed {{package_output}}"
+
+    - name: Get hostname and IP address
+      set_fact:
+        host_info: "{{ hostvars[item]['ansible_hostname'] }},{{ hostvars[item]['ansible_host'] }}"
+      loop: "{{ groups['all'] }}"
+      register: host_details
+
+    - name: Hostname and ip address
+      debug:
+        msg: "{{ host_details }}"
+
+    - name: Write to CSV file
+      ansible.builtin.lineinfile:
+        dest: "{{ output_path }}/{{ filename }}"
+        line: "{{ host_info }},{{ package_output.stdout }}"
+        create: yes
+      loop: "{{ host_details.results }}"
+      when: package_output.stdout is defined
+      delegate_to: localhost
+
+    - name: Remove blank lines from CSV file
+      lineinfile:
+        path: "{{ output_path }}/{{ filename }}"
+        state: absent
+        regex: '^\s*$'
