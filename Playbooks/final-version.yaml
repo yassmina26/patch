@@ -2,7 +2,11 @@
 - hosts: all
   gather_facts: true
   ignore_unreachable: true
+  
   vars:
+    #Variable for check_space tasks
+    usage_limit: 0.4
+    
     #email settings
     email_subject: Patching Report
     email_host: 128.110.156.4
@@ -19,17 +23,13 @@
     - name: This executes, fails, and the failure is ignored
       ansible.builtin.command: /bin/true
 
-    - name: Check space capacity
-      assert:
-        success_msg: The size(/) > 10GB
-        that:
-        - (10*(1024**3)) < (ansible_mounts | selectattr('mount','eq','/') | list)[0].size_total
-      register: storage_capacity
+    - name: Check disk space 
+      import_tasks: disk_space_check.yaml 
 
-    - name:  Verify web/database processes are not running
-      shell: if ps -eaf | egrep 'apache|http'|grep -v grep > /dev/null ;then echo 'process_running';else echo 'process_not_running';fi
-      ignore_errors: true
-      register: app_process_check
+    # - name:  Verify web/database processes are not running
+    #   shell: if ps -eaf | egrep 'apache|http'|grep -v grep > /dev/null ;then echo 'process_running';else echo 'process_not_running';fi
+    #   ignore_errors: true
+    #   register: app_process_check
       
     - name: Search for available updates
       command: apt list --upgradable
@@ -39,9 +39,9 @@
     #  debug:
     #    msg: "available updates are: {{available_updates_before}}"
 
-    #- name: Search for security updates only
-    #  command: sudo unattended-upgrade --dry-run -d
-    #  register: available_security_updates
+    - name: Search for security updates only
+      command: sudo unattended-upgrade --dry-run -d
+      register: available_security_updates
 
     # - name: List security updates
     #   debug:
@@ -82,15 +82,15 @@
      #   var: csv_file
     ##  run_once: true
 
-    - name: Send Email
-      community.general.mail:
-        host: "{{ email_host }}"
-        from: "{{ email_from }}"
-        port: 25
-        to: "{{ email_to }}"
-        subject: "[Ansible] {{ email_subject }}"
-        body: "{{ lookup('template', 'report.html.j2') }}"
-        attach: "{{ csv_path }}/{{ csv_filename }}"
-        subtype: html
-      delegate_to: localhost
-     # run_once: true
+    # - name: Send Email
+    #   community.general.mail:
+    #     host: "{{ email_host }}"
+    #     from: "{{ email_from }}"
+    #     port: 25
+    #     to: "{{ email_to }}"
+    #     subject: "[Ansible] {{ email_subject }}"
+    #     body: "{{ lookup('template', 'report.html.j2') }}"
+    #     attach: "{{ csv_path }}/{{ csv_filename }}"
+    #     subtype: html
+    #   delegate_to: localhost
+    #  # run_once: true

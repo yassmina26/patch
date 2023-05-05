@@ -1,0 +1,36 @@
+  - set_fact:
+        #Specify the /path/to/filesystem instead of '/'
+      mount: "{{ ansible_mounts | selectattr('mount', 'equalto', '/') | first }}"
+
+  - set_fact:
+        #Calculate the used disk space
+      disk_usage: "{{ mount.size_total - mount.size_available }}"
+
+  - set_fact:
+        #Convert disk_usage to string
+      disk_usage_s: "{{ (disk_usage|float / 1000000000) | round(1, 'common') }}GB"
+
+  - set_fact:
+        #Calculate the percentage of used space
+      disk_usage_ratio: "{{ disk_usage|float / mount.size_total }}"
+
+  - set_fact:
+        #Convert the total space to string
+      disk_total_s: "{{ (mount.size_total / 1000000000) | round(1, 'common') }}GB"
+
+  - set_fact:
+        #Convert the percentage of disk usage to string
+      disk_usage_ratio_s: "{{ 100 * (disk_usage_ratio|float) | round(1, 'common') }}%"
+
+  - set_fact:
+        #Calculate the remaining disk space
+      disk_remaining_s: "{{ (mount.size_available / 1000000000) | round(1, 'common') }}GB"
+
+        #Check that the calculated disk usage is less than the usage limit
+  - name: Assert disk usage
+    assert:
+      that: not (disk_usage|float / mount.size_total) > usage_limit |float
+      fail_msg: "Disk usage {{ disk_usage_s }}({{disk_usage_ratio_s}}) exceeds {{ usage_limit * 100 }}% of total {{ disk_total_s }}"
+
+  - debug:
+        msg: "Disk usage {{ disk_usage_s }} ({{ disk_usage_ratio_s }}), of total {{ disk_total_s }} (100%), with {{ disk_remaining_s }} ({{ 100 - (disk_usage_ratio|float * 100)|round(1, 'common') }}%) remaining." 
