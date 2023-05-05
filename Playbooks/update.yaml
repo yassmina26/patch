@@ -1,0 +1,21 @@
+- name: Generate CSV report of hostnames, IP addresses, and available updates
+  hosts: all
+  become: yes
+  become_method: sudo
+  gather_facts: true
+  tasks:
+  - name: install all updates
+    apt:
+      upgrade: dist
+      update_cache: yes
+    register: result
+  - name: List installed and updated packages
+    shell: grep -E "^$(date +%Y-%m-%d).+ (install|upgrade) " /var/log/dpkg.log |cut -d " " -f 3-5
+    register: result
+  - name: Show Output
+    debug: msg="{{ result.stdout_lines }}"
+
+  - name: Print error message if update fails
+    debug:
+      msg: "{{ result.msg }}"
+    when: result.failed
