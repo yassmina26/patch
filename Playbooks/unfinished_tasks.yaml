@@ -2,22 +2,7 @@
   ignore_unreachable: true
   become: true
   tasks:
-
-    - name: Update all
-      apt:
-      update_cache: yes
-      upgrade: yes
-      cache_valid_time: 3500
-      register: update_result
-      failed_when: update_result.rc not in [0, 2]
-      ignore_errors: yes
-
-    - name: Perform Security Updates
-      command: sudo unattended-upgrade -d
-      register: sec_patch_result
-      failed_when: sec_patch_result.rc not in [0, 2]
-      ignore_errors: yes
-      
+        
     # Fix OS release version before patching???
     
     - name: In case of playbook failure
@@ -40,16 +25,6 @@
       reboot:
       when: reboot_required_file.stat.exists == true
       reboot_timeout: 300
-    
-    - name: check if all the systems responding to ssh
-      local_action:
-        module: wait_for
-          host={{ (ansible_ssh_host|default(ansible_host))|default(inventory_hostname) }}
-          port=22
-          search_regex=OpenSSH
-          delay=15
-          timeout=300
-          state=started
 
     - name: List available updates after reboot
       command: apt list --upgradable

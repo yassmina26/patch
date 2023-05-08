@@ -1,31 +1,31 @@
-- name: Generate CSV report of hostnames, IP addresses, and available updates
-  hosts: all
-  become: yes
-  become_method: sudo
-  gather_facts: true
-  tasks:
-  - name: install all updates
-    apt:
-      upgrade: dist
-      update_cache: yes
-    register: result
-  - name: List installed and updated packages
-    shell: grep -E "^$(date +%Y-%m-%d).+ (install|upgrade) " /var/log/dpkg.log |cut -d " " -f 3-5
-    register: result
-  - name: Show Output
-    debug: msg="{{ result.stdout_lines }}"
+- name: Install all updates
+  become: true
+  apt:
+    upgrade: yes
+    update_cache: yes
+  register: result
 
-  - name: Print error message if update fails
-    debug:
-      msg: "{{ result.msg }}"
-    when: result.failed
-    
-  - name: Create the security.sources.list file 
-    shell: |
-        grep security /etc/apt/sources.list > /etc/apt/security.sources.list
+- name: List installed and updated packages
+  become: true
+  shell: grep -E "^$(date +%Y-%m-%d).+ (install|upgrade) " /var/log/dpkg.log | cut -d " " -f 3-5
+  register: package_list
+  ignore_errors: true
 
-  - name: Install just security updates 
-    apt:
-      upgrade: yes
-      dpkg_options: "Dir::Etc::SourceList=/etc/apt/security.sources.list"
-    register: apt_output 
+- name: Show output
+  debug:
+    msg: "installed packages: {{ package_list.stdout_lines }}"
+
+- name: Print error message if update fails
+  debug:
+    msg: "{{ result.msg }}"
+  when: result.failed
+
+- name: Create the security.sources.list file
+  shell: |
+    grep security /etc/apt/sources.list > /etc/apt/security.sources.list
+
+- name: Install just security updates
+  apt:
+    upgrade: yes
+    dpkg_options: "Dir::Etc::SourceList=/etc/apt/security.sources.list"
+  register: apt_output

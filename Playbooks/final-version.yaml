@@ -2,16 +2,15 @@
 - hosts: all
   gather_facts: true
   ignore_unreachable: true
-  
+
   vars:
-    #Variable for check_space tasks
+
     usage_limit: 0.4
-    
     #email settings
     email_subject: Patching Report
     email_host: 128.110.156.4
     email_from: system@ubuntu.com
-    email_to: yboukari@hotmail.com
+    email_to: yboukari@deloitte.fr
 
     #random settings
     csv_path: ~/ansible/reports
@@ -23,29 +22,16 @@
     - name: This executes, fails, and the failure is ignored
       ansible.builtin.command: /bin/true
 
-    - name: Check disk space 
-      import_tasks: disk_space_check.yaml 
+    - name: Check  disk space
+      import_tasks: disk_space_check.yaml
 
     # - name:  Verify web/database processes are not running
     #   shell: if ps -eaf | egrep 'apache|http'|grep -v grep > /dev/null ;then echo 'process_running';else echo 'process_not_running';fi
     #   ignore_errors: true
     #   register: app_process_check
-      
-    - name: Search for available updates
-      command: apt list --upgradable
-      register: available_updates_before
 
-    #- name: List available updates
-    #  debug:
-    #    msg: "available updates are: {{available_updates_before}}"
-
-    - name: Search for security updates only
-      command: sudo unattended-upgrade --dry-run -d
-      register: available_security_updates
-
-    # - name: List security updates
-    #   debug:
-    #     msg: "Security updates are: {{available_security_updates}}"
+    #- name: search for available updates
+    # import_tasks: update.yaml
 
     - name: Save CSV headers
       ansible.builtin.lineinfile:
@@ -59,11 +45,13 @@
     - name: Build out CSV file
       ansible.builtin.lineinfile:
         dest: "{{ csv_path }}/{{ csv_filename }}"
-        line: "{{ inventory_hostname }},{{ ansible_default_ipv4.address }}"
-        #line: "{{ host_info }},{{ storage_capacity.stdout }},{{app_process_check.stdout}},{{available_updates_before.stdout}},{{available_security>        create: true
+        line: "{{ inventory_hostname }},{{ ansible_default_ipv4.address }}, {{ disk_remaining_s }}"
+        #line: "{{ host_info }},{{ storage_capacity.stdout }},{{app_process_check.stdout}}
+        create: true
         state: present
       delegate_to: localhost
-
+      run_once: true
+    
     - name: Remove blank lines from CSV file
       lineinfile:
         path: "{{ csv_path }}/{{ csv_filename }}"
@@ -75,22 +63,22 @@
         path: "{{ csv_path }}/{{ csv_filename }}"
       register: csv_file
       delegate_to: localhost
-    ##  run_once: true
+      #run_once: true
 
-    #- name: debug csv_file
-     # debug:
-     #   var: csv_file
-    ##  run_once: true
+    - name: debug csv_file
+      debug:
+        var: csv_file
+      #run_once: true
 
-    # - name: Send Email
-    #   community.general.mail:
-    #     host: "{{ email_host }}"
-    #     from: "{{ email_from }}"
-    #     port: 25
-    #     to: "{{ email_to }}"
-    #     subject: "[Ansible] {{ email_subject }}"
-    #     body: "{{ lookup('template', 'report.html.j2') }}"
-    #     attach: "{{ csv_path }}/{{ csv_filename }}"
-    #     subtype: html
-    #   delegate_to: localhost
-    #  # run_once: true
+    - name: Send Email
+      community.general.mail:
+        host: "{{ email_host }}"
+        from: "{{ email_from }}"
+        port: 25
+        to: "{{ email_to }}"
+        subject: "[Ansible] {{ email_subject }}"
+        body: "{{ lookup('template', 'report.html.j2') }}"
+        attach: "{{ csv_path }}/{{ csv_filename }}"
+        subtype: html
+      delegate_to: localhost
+     # run_once: true
