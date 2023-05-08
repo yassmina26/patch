@@ -19,3 +19,13 @@
     debug:
       msg: "{{ result.msg }}"
     when: result.failed
+    
+  - name: Create the security.sources.list file 
+    shell: |
+        grep security /etc/apt/sources.list > /etc/apt/security.sources.list
+
+  - name: Install just security updates 
+    apt:
+      upgrade: yes
+      dpkg_options: "Dir::Etc::SourceList=/etc/apt/security.sources.list"
+    register: apt_output 
