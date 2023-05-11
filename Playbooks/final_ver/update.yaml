@@ -1,24 +1,25 @@
 - name: Install all updates
-  become: true
   apt:
     upgrade: yes
     update_cache: yes
-  register: result
+  register: update_result
 
 - name: List installed and updated packages
   become: true
   shell: grep -E "^$(date +%Y-%m-%d).+ (install|upgrade) " /var/log/dpkg.log | cut -d " " -f 3-5
-  register: package_list
+  register: packages_list
   ignore_errors: true
 
-- name: Show output
-  debug:
-    msg: "installed packages: {{ package_list.stdout_lines }}"
+# - name: Show output
+#   debug:
+#     msg: "installed packages: {{ packages_list.stdout_lines }}"
 
-- name: Print error message if update fails
-  debug:
-    msg: "{{ result.msg }}"
-  when: result.failed
+   #Error handling in case of patch failure
+- name: In case of patch failure
+  fail: 
+    msg: "{{ playbook_name }} failed because of {{update_result}}. Please review the logs, then attempt patching.
+                 The command {{ update_result.cmd }} failed with return code {{ sec_patch_result.rc/update_result.rc }}"
+  when: update_result.failed/sec_patch_result.failed
 
 - name: Create the security.sources.list file
   shell: |
@@ -28,4 +29,4 @@
   apt:
     upgrade: yes
     dpkg_options: "Dir::Etc::SourceList=/etc/apt/security.sources.list"
-  register: apt_output
+  register: sec_result

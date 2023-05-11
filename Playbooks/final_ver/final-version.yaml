@@ -2,23 +2,28 @@
 - hosts: all
   gather_facts: true
   ignore_unreachable: true
+  become: true
   vars:
     usage_limit: 0.4
-    
+
     #email settings
     email_subject: Patching Report
     receiver: yboukari@deloitte.fr
 
     #random settings
-    csv_path: /root/ansible/reports
-    csv_filename: report_{{ lookup('pipe', 'date +%Y%m%d-%H%M%S') }}.csv
-    headers: Hostname, Ip address, Disk space
+
+    #Define a path where you want to save your csv file on the ansible control node
+    csv_path: /root/ansible/reports 
+    
+    #CSV_timestamp is a variable for searching in the host the actual timestamp to reference your csv file
+    csv_timestamp: "{{ lookup('pipe', 'date +%Y%m%d') }}"
+    csv_filename: "report_{{ csv_timestamp }}.csv"
+    #headers variable is what will build the csv header, and is used in the jinja2 template
+    headers: Hostname, Ip address, Disk space, Os type, Environment, fqdn, reboot status, patch status
 
   tasks:
-
-    - name: This executes, fails, and the failure is ignored
-      ansible.builtin.command: /bin/true
-
+    
+    #Check the disk space availability 
     - name: Check  disk space
       import_tasks: disk_space_check.yaml
 
@@ -29,13 +34,26 @@
 
     #- name: search for available updates
     # import_tasks: update.yaml
+    
+    #Debug a message on the console to confirm patch
+    - name: Confirm patch
+      debug: 
+        msg:"Patch completed succefully"
+        var: Patch_status
+    
+    #List available updates after reboot, supposed to show nothing
+    - name: List available updates after reboot
+      command: apt list --upgradable
+      register: apt_list_output_after
 
+    #Create CSV directory in the ansible control node
     - name: Create CSV directory
       ansible.builtin.file:
         path: "{{ csv_path }}"
         state: directory
       delegate_to: localhost
 
+    #Build out the csv file content for each host
     - name: Build CSV file content
       set_fact:
         csv_content: |
@@ -44,13 +62,14 @@
           {% endfor %}
       delegate_to: localhost
 
-
+    #Save the csv file in the ansible control node 
     - name: Save CSV file
       ansible.builtin.copy:
         content: "{{ headers }}\n{{ csv_content }}"
         dest: "{{ csv_path }}/{{ csv_filename }}"
       delegate_to: localhost
-
+    
+    #Remove blank lines from csv file to better organize it
     - name: Remove blank lines from CSV file
       lineinfile:
         path: "{{ csv_path }}/{{ csv_filename }}"
@@ -58,24 +77,23 @@
         regex: '^\s*$'
       delegate_to: localhost
 
-    - name: Display CSV file path
-      debug:
-        msg: "CSV file generated: {{ csv_filename }}"
-
+    #Read the csv file and parse its data to make it available for the jinja2 template processing
     - name: Read in CSV to variable
       community.general.read_csv:
         path: "{{ csv_path }}/{{ csv_filename }}"
       register: csv_file
       delegate_to: localhost
 
+    #Debug the csv file on the console
     - name: debug csv_file
       debug:
         var: csv_file
-
+    
+    #Send the email notification, using the template lookup plugin to call the jinja2 template in the body section
     - name: Send Email
       community.general.mail:
-        host: "localhost"
-        from: "root"
+        host: 127.0.0.1
+        from: root
         port: 25
         to: "{{ receiver }}"
         subject: "[Ansible] {{ email_subject }}"
