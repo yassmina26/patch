@@ -2,18 +2,15 @@
 - hosts: all
   gather_facts: true
   ignore_unreachable: true
-
   vars:
-
     usage_limit: 0.4
+    
     #email settings
     email_subject: Patching Report
-    email_host: 128.110.156.4
-    email_from: system@ubuntu.com
-    email_to: yboukari@deloitte.fr
+    receiver: yboukari@deloitte.fr
 
     #random settings
-    csv_path: ~/ansible/reports
+    csv_path: /root/ansible/reports
     csv_filename: report_{{ lookup('pipe', 'date +%Y%m%d-%H%M%S') }}.csv
     headers: Hostname, Ip address, Disk space
 
@@ -33,52 +30,66 @@
     #- name: search for available updates
     # import_tasks: update.yaml
 
-    - name: Save CSV headers
-      ansible.builtin.lineinfile:
-        dest: "{{ csv_path }}/{{ csv_filename }}"
-        line: "{{ headers }}"
-        create: true
-        state: present
+    - name: Create CSV directory
+      ansible.builtin.file:
+        path: "{{ csv_path }}"
+        state: directory
       delegate_to: localhost
-      #run_once: true
 
-    - name: Build out CSV file
-      ansible.builtin.lineinfile:
-        dest: "{{ csv_path }}/{{ csv_filename }}"
-        line: "{{ inventory_hostname }},{{ ansible_default_ipv4.address }}, {{ disk_remaining_s }}"
-        #line: "{{ host_info }},{{ storage_capacity.stdout }},{{app_process_check.stdout}}
-        create: true
-        state: present
+    - name: Build CSV file content
+      set_fact:
+        csv_content: |
+          {% for host in ansible_play_hosts_all %}
+          {{ hostvars[host].inventory_hostname }},{{ hostvars[host].ansible_default_ipv4.address }},{{ hostvars[host].disk_remaining_s }}
+          {% endfor %}
       delegate_to: localhost
-      run_once: true
-    
+
+
+    - name: Save CSV file
+      ansible.builtin.copy:
+        content: "{{ headers }}\n{{ csv_content }}"
+        dest: "{{ csv_path }}/{{ csv_filename }}"
+      delegate_to: localhost
+
     - name: Remove blank lines from CSV file
       lineinfile:
         path: "{{ csv_path }}/{{ csv_filename }}"
         state: absent
         regex: '^\s*$'
+      delegate_to: localhost
+
+    - name: Display CSV file path
+      debug:
+        msg: "CSV file generated: {{ csv_filename }}"
 
     - name: Read in CSV to variable
       community.general.read_csv:
         path: "{{ csv_path }}/{{ csv_filename }}"
       register: csv_file
       delegate_to: localhost
-      #run_once: true
 
     - name: debug csv_file
       debug:
         var: csv_file
-      #run_once: true
 
     - name: Send Email
       community.general.mail:
-        host: "{{ email_host }}"
-        from: "{{ email_from }}"
+        host: "localhost"
+        from: "root"
         port: 25
-        to: "{{ email_to }}"
+        to: "{{ receiver }}"
         subject: "[Ansible] {{ email_subject }}"
         body: "{{ lookup('template', 'report.html.j2') }}"
         attach: "{{ csv_path }}/{{ csv_filename }}"
         subtype: html
       delegate_to: localhost
-     # run_once: true
+
+
+
+
+
+
+
+
+
+     
