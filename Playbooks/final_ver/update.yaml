@@ -29,3 +29,24 @@
     upgrade: yes
     dpkg_options: "Dir::Etc::SourceList=/etc/apt/security.sources.list"
   register: apt_output
+
+- name: Confirm patch
+  debug: 
+    msg:"Patch completed succefully"
+  when: result.succeed
+  register: patch_output 
+
+- name: check if reboot is needed
+  stat:
+    path: /var/run/reboot-required
+  register: reboot_required_file
+
+- name: check if reboot is nedded true or false
+  debug:
+    msg: "reboot is {{ reboot_required_file.stat.exists  | ternary('NEEDED', 'NOT NEDDED') }} "
+  register: rebout_output 
+
+- name: Reboot if required
+  reboot:
+  when: reboot_required_file.stat.exists == true
+  reboot_timeout: 300
