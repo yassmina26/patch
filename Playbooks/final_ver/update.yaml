@@ -1,10 +1,17 @@
-- name: Install all updates
-  apt:
-    upgrade: yes
-    update_cache: yes
+# - name: Install all updates
+#   apt:
+#     upgrade: yes
+#     update_cache: yes
+#   register: update_result
+
+- name: install a package
+  ansible.builtin.package:
+    name:
+      - httpd
+    state: latest 
   register: update_result
 
-- name: List installed and updated packages
+- name: List installed packages
   become: true
   shell: grep -E "^$(date +%Y-%m-%d).+ (install|upgrade) " /var/log/dpkg.log | cut -d " " -f 3-5
   register: packages_list

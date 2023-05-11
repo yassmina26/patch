@@ -27,20 +27,31 @@
     - name: Check  disk space
       import_tasks: disk_space_check.yaml
 
-    # - name:  Verify web/database processes are not running
-    #   shell: if ps -eaf | egrep 'apache|http'|grep -v grep > /dev/null ;then echo 'process_running';else echo 'process_not_running';fi
-    #   ignore_errors: true
-    #   register: app_process_check
-
-    #- name: search for available updates
-    # import_tasks: update.yaml
-    
+    - name: search for available updates
+      import_tasks: update.yaml
+         
     #Debug a message on the console to confirm patch
     - name: Confirm patch
-      debug: 
+      debug:
         msg:"Patch completed succefully"
-        var: Patch_status
-    
+      when: update_result.succeed
+      register: patch_status
+        
+    - name: check if reboot is needed
+      stat:
+        path: /var/run/reboot-required
+      register: reboot_required_file
+
+    - name: check if reboot is nedded true or false
+      debug:
+        msg: "reboot is {{ reboot_required_file.stat.exists  | ternary('NEEDED', 'NOT NEDDED') }} "
+      register: reboot_status 
+
+    # - name: Reboot if required
+    #   reboot:
+    #   when: reboot_required_file.stat.exists == true
+    #   reboot_timeout: 300
+
     #List available updates after reboot, supposed to show nothing
     - name: List available updates after reboot
       command: apt list --upgradable
@@ -90,17 +101,17 @@
         var: csv_file
     
     #Send the email notification, using the template lookup plugin to call the jinja2 template in the body section
-    - name: Send Email
-      community.general.mail:
-        host: 127.0.0.1
-        from: root
-        port: 25
-        to: "{{ receiver }}"
-        subject: "[Ansible] {{ email_subject }}"
-        body: "{{ lookup('template', 'report.html.j2') }}"
-        attach: "{{ csv_path }}/{{ csv_filename }}"
-        subtype: html
-      delegate_to: localhost
+    # - name: Send Email
+    #   community.general.mail:
+    #     host: 127.0.0.1
+    #     from: root
+    #     port: 25
+    #     to: "{{ receiver }}"
+    #     subject: "[Ansible] {{ email_subject }}"
+    #     body: "{{ lookup('template', 'report.html.j2') }}"
+    #     attach: "{{ csv_path }}/{{ csv_filename }}"
+    #     subtype: html
+    #   delegate_to: localhost
 
 
 
