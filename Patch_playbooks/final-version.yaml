@@ -10,7 +10,7 @@
 
     #email settings
     email_subject: Patching Report
-    receiver: yboukari@deloitte.fr
+    receiver: boukariyassmine7@gmail.com
 
     #Define a path where you want to save your csv file on the ansible control node
     csv_path: /root/ansible/reports
