@@ -5,21 +5,21 @@
 #   register: update_result
 
 - name: install a package
-  ansible.builtin.package:
-    name:
-      - httpd
-    state: latest 
+  apt:
+    update_cache: true
+    name: autoconf
+    state: present
   register: update_result
+  ignore_errors: true
 
 - name: List installed packages
-  become: true
-  shell: grep -E "^$(date +%Y-%m-%d).+ (install|upgrade) " /var/log/dpkg.log | cut -d " " -f 3-5
-  register: packages_list
+  shell: grep -E "^$(date +%Y-%m-%d).+ (install|upgrade) " /var/log/dpkg.log | cut -d " " -f 4 | cut -d ":" -f 1
+  register: packages_installed
   ignore_errors: true
 
 # - name: Show output
 #   debug:
-#     msg: "installed packages: {{ packages_list.stdout_lines }}"
+#     msg: "installed packages: {{ packages_installed.stdout_lines }}"
 
 # - name: Create the security.sources.list file
 #   shell: |
@@ -33,7 +33,7 @@
 
 #Error handling in case of patch failure
 - name: In case of patch failure
-  fail: 
-    msg: "{{ playbook_name }} failed because of {{update_result}}. Please review the logs, then attempt patching.
-                 The command {{ update_result.cmd }} failed with return code {{ update_result.rc }}"
+  fail:
+    msg: "The patch failed. Please review the logs, then attempt patching.
+                 The update task failed with return code {{ update_result.rc }}"
   when: update_result.failed

@@ -4,53 +4,75 @@
   ignore_unreachable: true
   become: true
   vars:
+
+    #random settings
     usage_limit: 0.4
 
     #email settings
     email_subject: Patching Report
     receiver: yboukari@deloitte.fr
 
-    #random settings
-
     #Define a path where you want to save your csv file on the ansible control node
-    csv_path: /root/ansible/reports 
-    
+    csv_path: /root/ansible/reports
+
     #CSV_timestamp is a variable for searching in the host the actual timestamp to reference your csv file
     csv_timestamp: "{{ lookup('pipe', 'date +%Y%m%d') }}"
     csv_filename: "report_{{ csv_timestamp }}.csv"
     #headers variable is what will build the csv header, and is used in the jinja2 template
-    headers: Hostname, Ip address, Disk space, Os type, Environment, fqdn, reboot status, patch status
-
+    headers: Hostname, Ip address, FQDN, Disk space, Os type, Patch status, Reboot status
+    #env
   tasks:
-    
-    #Check the disk space availability 
+
+    #Those two tasks are for checking the OS type
+    - name: Read /etc/os-release
+      command: cat /etc/os-release
+      register: os_release_output
+
+    - name: Extract OS information
+      set_fact:
+        os_type: "{{ ansible_distribution }}_{{ ansible_distribution_version }}"
+      ignore_errors: true
+
+    #Extract fqdn name
+    - name: Extract fqdn name
+      set_fact:
+        fqdn: "{{ ansible_fqdn }}"
+      ignore_errors: true
+
+    #Check the disk space availability
     - name: Check  disk space
       import_tasks: disk_space_check.yaml
 
     - name: search for available updates
       import_tasks: update.yaml
-         
-    #Debug a message on the console to confirm patch
-    - name: Confirm patch
+
+    #Check patch if completed or not
+    - name: Check patch_status if completed or failed
+      set_fact:
+        patch_status: "{{ 'Patch completed successfully' if update_result is succeeded else 'Patch failed' }}"
+
+    - name: Debug patch status
       debug:
-        msg:"Patch completed succefully"
-      when: update_result.succeed
-      register: patch_status
-        
+        var: patch_status
+
+    #Check the file /var/run/reboot-required to see if the vm needs to be rebooted
     - name: check if reboot is needed
       stat:
         path: /var/run/reboot-required
       register: reboot_required_file
 
-    - name: check if reboot is nedded true or false
-      debug:
-        msg: "reboot is {{ reboot_required_file.stat.exists  | ternary('NEEDED', 'NOT NEDDED') }} "
-      register: reboot_status 
+    #Reboot the servers that needs to be rebooted
+    - name: Reboot if required
+      reboot:
+      when: reboot_required_file.stat.exists == true
 
-    # - name: Reboot if required
-    #   reboot:
-    #   when: reboot_required_file.stat.exists == true
-    #   reboot_timeout: 300
+    - name:
+      set_fact:
+        reboot_status: "{{ 'Reboot is completed successfully' if reboot_required_file.stat.exists else 'Reboot is not applicable' }}"
+
+    - name: Debug reboot status
+      debug:
+        var: reboot_status
 
     #List available updates after reboot, supposed to show nothing
     - name: List available updates after reboot
@@ -69,17 +91,17 @@
       set_fact:
         csv_content: |
           {% for host in ansible_play_hosts_all %}
-          {{ hostvars[host].inventory_hostname }},{{ hostvars[host].ansible_default_ipv4.address }},{{ hostvars[host].disk_remaining_s }}
+          {{ hostvars[host].inventory_hostname }},{{ hostvars[host].ansible_default_ipv4.address }},{{ hostvars[host].fqdn }},{{ hostvars[host].disk_remaining_s }},{{ hostvars[host].os_type }},{{ hostvars[host].patch_status }}, {{ hostvars[host].reboot_status }}
           {% endfor %}
       delegate_to: localhost
 
-    #Save the csv file in the ansible control node 
+    #Save the csv file in the ansible control node
     - name: Save CSV file
       ansible.builtin.copy:
         content: "{{ headers }}\n{{ csv_content }}"
         dest: "{{ csv_path }}/{{ csv_filename }}"
       delegate_to: localhost
-    
+
     #Remove blank lines from csv file to better organize it
     - name: Remove blank lines from CSV file
       lineinfile:
@@ -95,30 +117,16 @@
       register: csv_file
       delegate_to: localhost
 
-    #Debug the csv file on the console
-    - name: debug csv_file
-      debug:
-        var: csv_file
-    
     #Send the email notification, using the template lookup plugin to call the jinja2 template in the body section
-    # - name: Send Email
-    #   community.general.mail:
-    #     host: 127.0.0.1
-    #     from: root
-    #     port: 25
-    #     to: "{{ receiver }}"
-    #     subject: "[Ansible] {{ email_subject }}"
-    #     body: "{{ lookup('template', 'report.html.j2') }}"
-    #     attach: "{{ csv_path }}/{{ csv_filename }}"
-    #     subtype: html
-    #   delegate_to: localhost
+    - name: Send Email
+      community.general.mail:
+        host: localhost
+        from: root
+        port: 25
+        to: "{{ receiver }}"
+        subject: "[Ansible] {{ email_subject }}"
+        body: "{{ lookup('template', 'report.html.j2') }}"
+        attach: "{{ csv_path }}/{{ csv_filename }}"
+        subtype: html
+      delegate_to: localhost
 
-
-
-
-
-
-
-
-
-     
