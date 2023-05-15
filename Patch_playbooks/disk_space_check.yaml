@@ -1,4 +1,4 @@
-    #Specify the /path/to/filesystem instead of '/'
+  #Specify the /path/to/filesystem instead of '/'
   - set_fact:
       mount: "{{ ansible_mounts | selectattr('mount', 'equalto', '/') | first }}"
 
