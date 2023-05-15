@@ -12,11 +12,6 @@
   register: update_result
   ignore_errors: true
 
-- name: List installed packages
-  shell: grep -E "^$(date +%Y-%m-%d).+ (install|upgrade) " /var/log/dpkg.log | cut -d " " -f 4 | cut -d ":" -f 1
-  register: packages_installed
-  ignore_errors: true
-
 # - name: Show output
 #   debug:
 #     msg: "installed packages: {{ packages_installed.stdout_lines }}"
