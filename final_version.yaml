@@ -23,37 +23,24 @@
     #env
   tasks:
 
-    #Those two tasks are for checking the OS type
-    - name: Read /etc/os-release
-      command: cat /etc/os-release
-      register: os_release_output
-
-    - name: Extract OS information
-      set_fact:
-        os_type: "{{ ansible_distribution }}_{{ ansible_distribution_version }}"
-      ignore_errors: true
-
-    #Extract fqdn name
-    - name: Extract fqdn name
-      set_fact:
-        fqdn: "{{ ansible_fqdn }}"
-      ignore_errors: true
-
     #Check the disk space availability
     - name: Check  disk space
       import_tasks: disk_space_check.yaml
 
-    - name: search for available updates
-      import_tasks: update.yaml
+    #Those two tasks are for checking the OS type && extract vm's fqdn
+    - name: Extract os type and fqdn
+      import_tasks: os_type_fqdn.yaml
 
-    #Check patch if completed or not
-    - name: Check patch_status if completed or failed
-      set_fact:
-        patch_status: "{{ 'Patch completed successfully' if update_result is succeeded else 'Patch failed' }}"
+    #Execute tasks based on the vm os distribution
+    - name: Execute tasks for Ubuntu
+      include_tasks: ubuntu.yaml
+      when: ansible_distribution == 'Ubuntu'
+      ignore_errors: true
 
-    - name: Debug patch status
-      debug:
-        var: patch_status
+    - name: Execute tasks for CentOS
+      include_tasks: centos.yaml
+      when: ansible_distribution == 'CentOS'
+      ignore_errors: true
 
     #Check the file /var/run/reboot-required to see if the vm needs to be rebooted
     - name: check if reboot is needed
@@ -74,10 +61,21 @@
       debug:
         var: reboot_status
 
-    #List available updates after reboot, supposed to show nothing
-    - name: List available updates after reboot
-      command: apt list --upgradable
-      register: apt_list_output_after
+    #Check patch if completed or not
+    - name: Check patch_status if completed or failed
+      set_fact:
+        patch_status: "{{ 'Patch completed successfully' if update_result is succeeded else 'Patch failed' }}"
+
+    - name: Debug patch status
+      debug:
+        var: patch_status
+
+    #Error handling in case of patch failure
+    - name: In case of patch failure
+      fail:
+        msg: "The patch failed. Please review the logs, then attempt patching.
+                    The update task failed with return code {{ update_result.rc }}"
+      when: update_result.failed
 
     #Create CSV directory in the ansible control node
     - name: Create CSV directory

@@ -1,0 +1,14 @@
+- name: Read /etc/os-release
+  command: cat /etc/os-release
+  register: os_release_output
+
+- name: Extract OS information
+  set_fact:
+    os_type: "{{ ansible_distribution }}_{{ ansible_distribution_version }}"
+  ignore_errors: true
+
+  #Extract fqdn name
+- name: Extract fqdn name
+  set_fact:
+    fqdn: "{{ ansible_fqdn }}"
+  ignore_errors: true

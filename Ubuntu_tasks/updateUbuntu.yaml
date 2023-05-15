@@ -26,9 +26,3 @@
 #     dpkg_options: "Dir::Etc::SourceList=/etc/apt/security.sources.list"
 #   register: sec_result
 
-#Error handling in case of patch failure
-- name: In case of patch failure
-  fail:
-    msg: "The patch failed. Please review the logs, then attempt patching.
-                 The update task failed with return code {{ update_result.rc }}"
-  when: update_result.failed
