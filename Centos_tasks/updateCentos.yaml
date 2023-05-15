@@ -12,9 +12,3 @@
     #     state: latest
     #     security: critical 
     #   register: result
-
-- name: Run needs-restarting command
-  command: needs-restarting -r
-  register: reboot_check
-  changed_when: false
-  failed_when: false

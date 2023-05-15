@@ -42,21 +42,6 @@
       when: ansible_distribution == 'CentOS'
       ignore_errors: true
 
-    #Check the file /var/run/reboot-required to see if the vm needs to be rebooted
-    - name: check if reboot is needed
-      stat:
-        path: /var/run/reboot-required
-      register: reboot_required_file
-
-    #Reboot the servers that needs to be rebooted
-    - name: Reboot if required
-      reboot:
-      when: reboot_required_file.stat.exists == true
-
-    - name:
-      set_fact:
-        reboot_status: "{{ 'Reboot is completed successfully' if reboot_required_file.stat.exists else 'Reboot is not applicable' }}"
-
     - name: Debug reboot status
       debug:
         var: reboot_status

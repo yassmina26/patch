@@ -1,4 +1,33 @@
 - name: search for available updates
   import_tasks: updateCentos.yaml
 
+# - name: Run needs-restarting command
+#   command: needs-restarting -r
+#   register: reboot_status
+#   changed_when: false
+#   failed_when: false
+
+- name: check to see if we need a reboot
+  command: needs-restarting -r
+  register: result
+  ignore_errors: yes
+
+- name: display result
+  debug:
+    var: result.rc
+
+- name: Reboot Server if Necessary
+  command: shutdown -r now "Ansible Updates Triggered"
+  become: true
+  async: 30
+  poll: 0
+  when: result.rc == 1
+    
+- name: Pausing to allow server to shutdown and terminate our SSH connection
+  pause: seconds=30
+  when: result.rc == 1
+      
+- name:
+  set_fact:
+    reboot_status: "{{ 'Reboot is completed successfully on this vm' if result.rc == 1 else 'Reboot is not applicable on this vm' }}"
 
