@@ -83,6 +83,7 @@
         path: "{{ csv_path }}"
         state: directory
       delegate_to: localhost
+      run_once: true
 
     #Build out the csv file content for each host
     - name: Build CSV file content
@@ -92,6 +93,7 @@
           {{ hostvars[host].inventory_hostname }},{{ hostvars[host].ansible_default_ipv4.address }},{{ hostvars[host].fqdn }},{{ hostvars[host].disk_remaining_s }},{{ hostvars[host].os_type }},{{ hostvars[host].patch_status }}, {{ hostvars[host].reboot_status }}
           {% endfor %}
       delegate_to: localhost
+      run_once: true
 
     #Save the csv file in the ansible control node
     - name: Save CSV file
@@ -99,6 +101,7 @@
         content: "{{ headers }}\n{{ csv_content }}"
         dest: "{{ csv_path }}/{{ csv_filename }}"
       delegate_to: localhost
+      run_once: true
 
     #Remove blank lines from csv file to better organize it
     - name: Remove blank lines from CSV file
@@ -107,6 +110,7 @@
         state: absent
         regex: '^\s*$'
       delegate_to: localhost
+      run_once: true
 
     #Read the csv file and parse its data to make it available for the jinja2 template processing
     - name: Read in CSV to variable
@@ -114,6 +118,7 @@
         path: "{{ csv_path }}/{{ csv_filename }}"
       register: csv_file
       delegate_to: localhost
+      run_once: true
 
     #Send the email notification, using the template lookup plugin to call the jinja2 template in the body section
     - name: Send Email
@@ -127,4 +132,4 @@
         attach: "{{ csv_path }}/{{ csv_filename }}"
         subtype: html
       delegate_to: localhost
-
+      run_once: true

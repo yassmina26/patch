@@ -4,3 +4,17 @@
     state: latest
   register: update_result
   ignore_errors: true
+
+    # - name: Perform updates from local repository
+    #   yum:
+    #     name: '*'
+    #   # exclude: "name the packages that you dont want to update"
+    #     state: latest
+    #     security: critical 
+    #   register: result
+
+- name: Run needs-restarting command
+  command: needs-restarting -r
+  register: reboot_check
+  changed_when: false
+  failed_when: false
