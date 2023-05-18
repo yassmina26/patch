@@ -1,0 +1,53 @@
+---
+- hosts: all
+  gather_facts: true
+  ignore_unreachable: true
+  become: true
+  tasks:
+
+    - block:
+
+      - debug:
+          msg: 'This server is running Ubuntu 20.04 LTS and will be upgraded to 22.04 LTS.'
+
+      # Now would be a good time to take a backup if you can trigger an
+      # automated backup!
+
+      - name: Remove the EOL message of the day if one exists.
+        file:
+          path: "{{ item }}"
+          state: absent
+        with_items:
+          - /etc/update-motd.d/99-esm
+          - /run/motd.dynamic
+
+      - name: Upgrade all packages to the latest version
+        apt: update_cache=yes upgrade=full
+
+      - name: check if reboot is needed
+        stat:
+          path: /var/run/reboot-required
+        register: reboot_required_file
+
+      #Reboot the servers that needs to be rebooted
+      - name: Reboot if required
+        reboot:
+        when: reboot_required_file.stat.exists == true
+
+      - name:
+        set_fact:
+          reboot_status: "{{ 'Reboot is completed successfully' if reboot_required_file.stat.exists else 'Reboot is not applicable' }}"
+      - name: 
+        debug:
+          msg: " {{ reboot_status }} " 
+            
+      - name: Ensure update-manager-core is installed.
+        apt: name=update-manager-core state=present
+
+      - name: Run do-release-upgrade non-interactively.
+        command: do-release-upgrade -f DistUpgradeViewNonInteractive
+
+      - name: Reboot the server.
+        reboot:
+
+      when: ansible_distribution == 'Ubuntu' and ansible_distribution_version == '20.04'
